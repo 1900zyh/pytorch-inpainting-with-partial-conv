@@ -9,3 +9,4 @@ masks
 *.jpg
 *.png
 debug.*
+__pycache__

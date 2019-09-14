@@ -20,9 +20,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from tensorboardX import SummaryWriter
 
 from core.dataset import Dataset
-from core.model import PConvUNet
-from core.utils import set_seed, set_device, VGG16FeatureExtractor
-from c import Vgg16
+from core.model import PConvUNet, VGG16FeatureExtractor
+from core.utils import set_seed, set_device
 
 from core import loss as module_loss
 from core import metric as module_metric
