@@ -9,6 +9,9 @@ from PIL import Image
 import torch
 
 
+MEAN = [0.485, 0.456, 0.406]
+STD = [0.229, 0.224, 0.225]
+
 # set random seed 
 def set_seed(seed, base=0, is_set=True):
   seed += base
@@ -51,10 +54,8 @@ def set_device(args):
       return args.cuda()
   return args
 
-def postprocess(img, data_range=2):
-  if data_range == 2:
-    img = (img + 1.) / 2.
-  img = img * 255.0
+def postprocess(img, data_range=2): 
+  img = img * torch.Tensor(STD) + torch.Tensor(MEAN)
   img = img.permute(0, 2, 3, 1)
   img = img.int().cpu().numpy().astype(np.uint8)
   return img

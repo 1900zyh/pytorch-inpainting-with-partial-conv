@@ -12,6 +12,9 @@ from torch.utils.data import DataLoader
 
 from core.utils import ZipReader
 
+MEAN = [0.485, 0.456, 0.406]
+STD = [0.229, 0.224, 0.225]
+
 class Dataset(torch.utils.data.Dataset):
   def __init__(self, data_args, debug=False, split='train'):
     super(Dataset, self).__init__()
@@ -23,6 +26,12 @@ class Dataset(torch.utils.data.Dataset):
       for i in np.genfromtxt(os.path.join(data_args['flist_root'], 'mask.flist'), dtype=np.str, encoding='utf-8')]
     self.mask.sort()
     self.data.sort()
+    
+    self.img_tf = transforms.Compose(
+      [transforms.Resize(size=(self.w, self.h)), transforms.ToTensor(),
+      transforms.Normalize(mean=MEAN, std=STD)])
+    self.mask_tf = transforms.Compose(
+      [transforms.Resize(size=(self.w, self.h)), transforms.ToTensor()])
     if debug:
       self.data = self.data[:100]
 
@@ -54,9 +63,9 @@ class Dataset(torch.utils.data.Dataset):
       mask = transforms.RandomHorizontalFlip()(mask)
       mask = mask.rotate(random.randint(0,45), expand=True)
       mask = mask.filter(ImageFilter.MaxFilter(3))
-    img = img.resize((self.w, self.h), Image.ANTIALIAS)
-    mask = mask.resize((self.w, self.h), Image.ANTIALIAS)
-    return F.to_tensor(img)*2-1., F.to_tensor(mask), img_name
+    img = self.img_tf(img)
+    mask = self.mask_tf(mask)
+    return img, 1-mask, img_name
 
   def create_iterator(self, batch_size):
     while True:

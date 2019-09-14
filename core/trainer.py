@@ -11,7 +11,7 @@ from math import log10
 
 import torch
 import torch.nn as nn
-from torchvision.utils import make_grid
+from torchvision.utils import make_grid, save_image
 
 from core.utils import set_seed, Progbar, postprocess, set_device
 from core.base_trainer import BaseTrainer
@@ -68,7 +68,7 @@ class Trainer(BaseTrainer):
         pred_imgs = postprocess(output)
         mask_imgs = postprocess(inpts)
         grid_img = make_grid(torch.cat([orig_imgs, mask_imgs, pred_imgs, comp_imgs], dim=0), nrow=4)
-        grid_img.save(os.path.join(path, '{}.png'.format(str(index).zfill(5))))
+        save_image(grid_img, os.path.join(path, '{}.png'.format(str(index).zfill(5))))
         for key, val in self.metrics.items():
           evaluation_scores[key] += val(orig_imgs, comp_imgs)
         index += 1
