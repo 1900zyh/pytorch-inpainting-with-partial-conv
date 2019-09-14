@@ -1,134 +1,72 @@
 import argparse
 import numpy as np
 import os
+import json 
+
 import torch
-from tensorboardX import SummaryWriter
-from torch.utils import data
-from torchvision import transforms
-from tqdm import tqdm
+import torch.multiprocessing as mp
 
-import opt
-from evaluation import evaluate
-from loss import InpaintingLoss
-from net import PConvUNet
-from net import VGG16FeatureExtractor
-from places2 import Places2
-from util.io import load_ckpt
-from util.io import save_ckpt
+from core.philly import ompi_size, ompi_local_size, ompi_rank, ompi_local_rank
+from core.philly import get_master_ip, gpu_indices, ompi_universe_size
+from core.utils import set_seed
+from core.trainer import Trainer
 
 
-class InfiniteSampler(data.sampler.Sampler):
-    def __init__(self, num_samples):
-        self.num_samples = num_samples
-
-    def __iter__(self):
-        return iter(self.loop())
-
-    def __len__(self):
-        return 2 ** 31
-
-    def loop(self):
-        i = 0
-        order = np.random.permutation(self.num_samples)
-        while True:
-            yield order[i]
-            i += 1
-            if i >= self.num_samples:
-                np.random.seed()
-                order = np.random.permutation(self.num_samples)
-                i = 0
-
-
-parser = argparse.ArgumentParser()
-# training options
-parser.add_argument('--root', type=str, default='/srv/datasets/Places2')
-parser.add_argument('--mask_root', type=str, default='./masks')
-parser.add_argument('--save_dir', type=str, default='./snapshots/default')
-parser.add_argument('--log_dir', type=str, default='./logs/default')
-parser.add_argument('--lr', type=float, default=2e-4)
-parser.add_argument('--lr_finetune', type=float, default=5e-5)
-parser.add_argument('--max_iter', type=int, default=1000000)
-parser.add_argument('--batch_size', type=int, default=16)
-parser.add_argument('--n_threads', type=int, default=16)
-parser.add_argument('--save_model_interval', type=int, default=50000)
-parser.add_argument('--vis_interval', type=int, default=5000)
-parser.add_argument('--log_interval', type=int, default=10)
-parser.add_argument('--image_size', type=int, default=256)
-parser.add_argument('--resume', type=str)
-parser.add_argument('--finetune', action='store_true')
+parser = argparse.ArgumentParser(description="Pconv")
+parser.add_argument('-c', '--config', type=str, default='config.json')
+parser.add_argument('-n', '--dataname', type=str, default='places2') 
+parser.add_argument('-p', '--port', default='23455', type=str)
+parser.add_argument('-e', '--exam', action='store_true')
 args = parser.parse_args()
 
-torch.backends.cudnn.benchmark = True
-device = torch.device('cuda')
 
-if not os.path.exists(args.save_dir):
-    os.makedirs('{:s}/images'.format(args.save_dir))
-    os.makedirs('{:s}/ckpt'.format(args.save_dir))
+def main_worker(gpu, ngpus_per_node, config):
+  if 'local_rank' not in config:
+    config['local_rank'] = config['global_rank'] = gpu
+  if config['distributed']:
+    torch.cuda.set_device(int(config['local_rank']))
+    print('using GPU {} for training'.format(int(config['local_rank'])))
+    torch.distributed.init_process_group(backend = 'nccl', 
+      init_method = config['init_method'],
+      world_size = config['world_size'], 
+      rank = config['global_rank'],
+      group_name='mtorch'
+    )
+  set_seed(config['seed'])
 
-if not os.path.exists(args.log_dir):
-    os.makedirs(args.log_dir)
-writer = SummaryWriter(log_dir=args.log_dir)
+  config['save_dir'] = os.path.join(config['save_dir'], config['data_loader']['name'])
+  if (not config['distributed']) or config['global_rank'] == 0:
+    os.makedirs(config['save_dir'], exist_ok=True)
+    print('[**] create folder {}'.format(config['save_dir']))
 
-size = (args.image_size, args.image_size)
-img_tf = transforms.Compose(
-    [transforms.Resize(size=size), transforms.ToTensor(),
-     transforms.Normalize(mean=opt.MEAN, std=opt.STD)])
-mask_tf = transforms.Compose(
-    [transforms.Resize(size=size), transforms.ToTensor()])
+  trainer = Trainer(config, debug=args.exam)
+  trainer.train()
 
-dataset_train = Places2(args.root, args.mask_root, img_tf, mask_tf, 'train')
-dataset_val = Places2(args.root, args.mask_root, img_tf, mask_tf, 'val')
 
-iterator_train = iter(data.DataLoader(
-    dataset_train, batch_size=args.batch_size,
-    sampler=InfiniteSampler(len(dataset_train)),
-    num_workers=args.n_threads))
-print(len(dataset_train))
-model = PConvUNet().to(device)
+if __name__ == "__main__":
+  print('check if the gpu resource is well arranged on philly')
+  assert ompi_size() == ompi_local_size() * ompi_universe_size()
+  
+  # loading configs 
+  config = json.load(open(args.config))
+  config['data_loader']['name'] = args.dataname
 
-if args.finetune:
-    lr = args.lr_finetune
-    model.freeze_enc_bn = True
-else:
-    lr = args.lr
-
-start_iter = 0
-optimizer = torch.optim.Adam(
-    filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
-criterion = InpaintingLoss(VGG16FeatureExtractor()).to(device)
-
-if args.resume:
-    start_iter = load_ckpt(
-        args.resume, [('model', model)], [('optimizer', optimizer)])
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-    print('Starting from iter ', start_iter)
-
-for i in tqdm(range(start_iter, args.max_iter)):
-    model.train()
-
-    image, mask, gt = [x.to(device) for x in next(iterator_train)]
-    output, _ = model(image, mask)
-    loss_dict = criterion(image, mask, output, gt)
-
-    loss = 0.0
-    for key, coef in opt.LAMBDA_DICT.items():
-        value = coef * loss_dict[key]
-        loss += value
-        if (i + 1) % args.log_interval == 0:
-            writer.add_scalar('loss_{:s}'.format(key), value.item(), i + 1)
-
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    if (i + 1) % args.save_model_interval == 0 or (i + 1) == args.max_iter:
-        save_ckpt('{:s}/ckpt/{:d}.pth'.format(args.save_dir, i + 1),
-                  [('model', model)], [('optimizer', optimizer)], i + 1)
-
-    if (i + 1) % args.vis_interval == 0:
-        model.eval()
-        evaluate(model, dataset_val, device,
-                 '{:s}/images/test_{:d}.jpg'.format(args.save_dir, i + 1))
-
-writer.close()
+  # setup distributed parallel training environments
+  world_size = ompi_size()
+  ngpus_per_node = torch.cuda.device_count()
+  if world_size > 1:
+    config['world_size'] = world_size
+    config['init_method'] = 'tcp://' + get_master_ip() + args.port
+    config['distributed'] = True
+    config['local_rank'] = ompi_local_rank()
+    config['global_rank'] = ompi_rank()
+    main_worker(0, 1, config)
+  elif ngpus_per_node > 1:
+    config['world_size'] = ngpus_per_node
+    config['init_method'] = 'tcp://127.0.0.1:'+ args.port 
+    config['distributed'] = True
+    mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config))
+  else:
+    config['world_size'] = 1 
+    config['distributed'] = False
+    main_worker(0, 1, config)
