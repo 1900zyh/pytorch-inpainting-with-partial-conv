@@ -20,11 +20,11 @@ def tv(pred_img, real_img, mask):
 
 
 def hole(pred_img, real_img, mask):
-    return nn.L1Loss(mask*pred_img, mask*real_img)
+    return nn.L1Loss(mask*pred_img, mask*real_img) / np.mean(mask)
 
 
 def valid(pred_img, real_img, mask):
-    return nn.L1Loss((1.-mask)*pred_img, (1.-mask)*real_img)
+    return nn.L1Loss((1.-mask)*pred_img, (1.-mask)*real_img) / np.mean(1.-mask)
 
 
 def perceptual(pred_feat, real_feat, mask):

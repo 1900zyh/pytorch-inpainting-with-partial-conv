@@ -91,9 +91,8 @@ class BaseTrainer():
 
   def get_non_gan_loss(self, outputs, videos, masks):
     non_gan_losses = []
-    b, c, h, w = list(outputs.size())
-    outputs_feat = self.vgg(outputs.view(b*t, c, h, w))
-    videos_feat = self.vgg(videos.view(b*t, c, h, w))
+    outputs_feat = self.vgg(outputs)
+    videos_feat = self.vgg(videos)
     for loss_name, (loss_instance, loss_weight, input_type) in self.losses.items():
       if loss_weight > 0.0:
         if input_type == 'RGB':
@@ -101,7 +100,7 @@ class BaseTrainer():
         elif input_type == 'feat':
           loss = loss_instance(outputs_feat, videos_feat, masks)
         loss *= loss_weight
-        self.add_summary(self.writer, f'{loss_name}', loss.item())
+        self.add_summary(self.writer, f'loss/{loss_name}', loss.item())
         non_gan_losses.append(loss)
     return sum(non_gan_losses)
 
@@ -136,7 +135,7 @@ class BaseTrainer():
     if latest_epoch is not None:
       path = os.path.join(model_path, latest_epoch+'.pth')
       if self.config['global_rank'] == 0:
-        print('Loading model from {}...'.format(, path))
+        print('Loading model from {}...'.format(path))
       data = torch.load(path, map_location = lambda storage, loc: set_device(storage)) 
       model_dict = self.model.state_dict()
       pretrained_dict = {k:v for k,v in data['model'].items() if k in model_dict}
@@ -177,5 +176,5 @@ class BaseTrainer():
     """
     raise NotImplementedError
   
-  def adjust_learning_rate(self,)
+  def adjust_learning_rate(self,):
     raise NotImplementedError
