@@ -21,8 +21,8 @@ from tensorboardX import SummaryWriter
 
 from core.dataset import Dataset
 from core.model import PConvUNet
-from utils.util import set_seed, set_device
-from utils.vgg import Vgg16
+from core.utils import set_seed, set_device, VGG16FeatureExtractor
+from c import Vgg16
 
 from core import loss as module_loss
 from core import metric as module_metric
@@ -34,7 +34,7 @@ class BaseTrainer():
     self.config = config
     self.epoch = 0
     self.iteration = 0
-    self.vgg = Vgg16(requires_grad=False)
+    self.vgg =  VGG16FeatureExtractor()
     self.vgg = set_device(self.vgg)
 
     # setup data set and data loader
