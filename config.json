@@ -1,18 +1,6 @@
 {
     "save_dir": "release_model/",
     "seed": 2020,
-    "model": {
-        "name": "gatedTPgan",
-        "nc_in": 4,
-        "nc_out": 3,
-        "g_args": {
-            "nf": 64,
-            "norm": "SN",
-            "bias": true,
-            "conv_type": "gated",
-            "conv_by": "3d"
-        }
-    },
     "data_loader": {
         "name": "places2", 
         "zip_root": "../datazip",
@@ -24,43 +12,29 @@
     },
     "losses": [
         {
-            "type": "ReconLoss",
+            "name": "valid",
             "weight": 1.0,
-            "nickname": "valid",
-            "input": "RGB",
-            "args": {
-                "masked": false
-            }
+            "input": "RGB"
         },
         {
-            "type": "ReconLoss",
+            "name": "hole",
             "weight": 6.0,
-            "nickname": "hole",
-            "input": "RGB",
-            "args": {
-                "masked": true
-            }
+            "input": "RGB"
         },
         {
-            "type": "VGGLoss",
-            "weight": 0.1,
-            "nickname": "tv",
-            "input": "feat",
-            "args": {}
-        },
-        {
-            "type": "StyleLoss",
+            "name": "perceptual",
             "weight": 0.05,
-            "nickname": "prc",
-            "input": "feat",
-            "args": {}
+            "input": "feat"
         },
         {
-            "type": "StyleLoss",
+            "name": "style",
             "weight": 120,
-            "nickname": "loss_style",
-            "input": "feat",
-            "args": {}
+            "input": "feat"
+        },
+        {
+            "name": "tv",
+            "weight": 0.1,
+            "input": "RGB"
         }
     ],
     "metrics": [
@@ -70,7 +44,7 @@
     ],
     "optimizer": {
         "type": "Adam",
-        "lr": 0.00005,
+        "lr": 0.0002,
         "weight_decay": 0,
         "amsgrad": true
     },

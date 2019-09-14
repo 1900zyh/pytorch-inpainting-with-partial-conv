@@ -3,3 +3,9 @@ logs
 snapshots
 masks
 .idea
+
+
+*.pth
+*.jpg
+*.png
+debug.*

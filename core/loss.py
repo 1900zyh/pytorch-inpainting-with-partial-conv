@@ -11,49 +11,32 @@ def gram_matrix(feat):
     return gram
 
 
-def total_variation_loss(image):
+def tv(pred_img, real_img, mask):
+    output_comp = pred_img*mask + real_img*(1.-mask)
     # shift one pixel and get difference (for both x and y direction)
-    loss = torch.mean(torch.abs(image[:, :, :, :-1] - image[:, :, :, 1:])) + \
-        torch.mean(torch.abs(image[:, :, :-1, :] - image[:, :, 1:, :]))
+    loss = torch.mean(torch.abs(output_comp[:, :, :, :-1] - output_comp[:, :, :, 1:])) + \
+        torch.mean(torch.abs(output_comp[:, :, :-1, :] - output_comp[:, :, 1:, :]))
     return loss
 
 
-class InpaintingLoss(nn.Module):
-    def __init__(self, extractor):
-        super().__init__()
-        self.l1 = nn.L1Loss()
-        self.extractor = extractor
+def hole(pred_img, real_img, mask):
+    return nn.L1Loss(mask*pred_img, mask*real_img)
 
-    def forward(self, input, mask, output, gt):
-        loss_dict = {}
-        output_comp = mask * input + (1 - mask) * output
 
-        loss_dict['hole'] = self.l1((1 - mask) * output, (1 - mask) * gt)
-        loss_dict['valid'] = self.l1(mask * output, mask * gt)
+def valid(pred_img, real_img, mask):
+    return nn.L1Loss((1.-mask)*pred_img, (1.-mask)*real_img)
 
-        if output.shape[1] == 3:
-            feat_output_comp = self.extractor(output_comp)
-            feat_output = self.extractor(output)
-            feat_gt = self.extractor(gt)
-        elif output.shape[1] == 1:
-            feat_output_comp = self.extractor(torch.cat([output_comp]*3, 1))
-            feat_output = self.extractor(torch.cat([output]*3, 1))
-            feat_gt = self.extractor(torch.cat([gt]*3, 1))
-        else:
-            raise ValueError('only gray an')
 
-        loss_dict['prc'] = 0.0
-        for i in range(3):
-            loss_dict['prc'] += self.l1(feat_output[i], feat_gt[i])
-            loss_dict['prc'] += self.l1(feat_output_comp[i], feat_gt[i])
+def perceptual(pred_feat, real_feat, mask):
+    loss = 0.0
+    for i in range(3):
+        loss += nn.L1Loss(pred_feat[i], real_feat[i])
+    return loss 
 
-        loss_dict['style'] = 0.0
-        for i in range(3):
-            loss_dict['style'] += self.l1(gram_matrix(feat_output[i]),
-                                          gram_matrix(feat_gt[i]))
-            loss_dict['style'] += self.l1(gram_matrix(feat_output_comp[i]),
-                                          gram_matrix(feat_gt[i]))
 
-        loss_dict['tv'] = total_variation_loss(output_comp)
+def style(pred_feat, real_feat, mask):
+    loss = 0.0
+    for i in range(3):
+        loss += nn.L1Loss(gram_matrix(pred_feat[i]), gram_matrix(real_feat[i]))
+    return loss
 
-        return loss_dict

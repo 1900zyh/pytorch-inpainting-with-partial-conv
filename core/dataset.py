@@ -20,6 +20,8 @@ class Dataset(torch.utils.data.Dataset):
       for i in np.genfromtxt(os.path.join(data_args['flist_root'], data_args['name'], split+'.flist'), dtype=np.str, encoding='utf-8')]
     self.mask = [os.path.join(data_args['zip_root'], 'mask', i)
       for i in np.genfromtxt(os.path.join(data_args['flist_root'], data_args['name'], 'mask.flist'), dtype=np.str, encoding='utf-8')]
+    self.mask.sort()
+    self.data.sort()
     if debug:
       self.data = self.data[:100]
 

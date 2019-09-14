@@ -53,14 +53,14 @@ class BaseTrainer():
       batch_size=config['data_loader']['batch_size'], shuffle=False)
 
     # set loss functions and evaluation metrics
-    self.losses = {entry['nickname']: (
-        getattr(module_loss, entry['type'])(**entry['args']),
+    self.losses = {entry['name']: (
+        getattr(module_loss, entry['name']),
         entry['weight'], 
         entry['input']
       ) for entry in config['losses']}
     self.metrics = {met: getattr(module_metric, met) for met in config['metrics']}
 
-    # setup models including generator and discriminator
+    # setup models 
     self.model = set_device(PConvUNet())
     self.optim_args = self.config['optimizer']
     self.optim = optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()),
@@ -73,7 +73,7 @@ class BaseTrainer():
     # set summary writer
     self.writer = None
     if self.config['global_rank'] == 0 or (not config['distributed']):
-      self.writer = SummaryWriter(os.path.join(config['save_dir'], 'gen'))
+      self.writer = SummaryWriter(config['save_dir'])
     self.samples_path = os.path.join(config['save_dir'], 'samples')
     self.results_path = os.path.join(config['save_dir'], 'results')
     
@@ -91,7 +91,7 @@ class BaseTrainer():
 
   def get_non_gan_loss(self, outputs, videos, masks):
     non_gan_losses = []
-    b, t, c, h, w = list(outputs.size())
+    b, c, h, w = list(outputs.size())
     outputs_feat = self.vgg(outputs.view(b*t, c, h, w))
     videos_feat = self.vgg(videos.view(b*t, c, h, w))
     for loss_name, (loss_instance, loss_weight, input_type) in self.losses.items():
@@ -107,7 +107,6 @@ class BaseTrainer():
 
 
   def train(self):
-    total = len(self.train_dataset)
     while True:
       self.epoch += 1
       if self.epoch > self.train_args['epochs']:
@@ -116,7 +115,6 @@ class BaseTrainer():
         self.train_sampler.set_epoch(self.epoch)
       # self.adjust_learning_rate()
       self._train_epoch()
-      # save model and evaluation
       if self.config['global_rank'] == 0:
         if self.epoch % self.train_args['save_freq'] == 0:
           self._save(self.epoch)
@@ -126,25 +124,25 @@ class BaseTrainer():
     print('\nEnd training....')
 
 
-  # load netG and netD
+  # load model parameters
   def _load(self):
     model_path = self.config['save_dir']
     if os.path.isfile(os.path.join(model_path, 'latest.ckpt')):
       latest_epoch = open(os.path.join(model_path, 'latest.ckpt'), 'r').read().splitlines()[-1]
     else:
-      ckpts = [os.path.basename(i).split('_netD.pth')[0] for i in glob.glob(os.path.join(model_path, '*_netD.pth'))]
+      ckpts = [os.path.basename(i).split('.pth')[0] for i in glob.glob(os.path.join(model_path, '*.pth'))]
       ckpts.sort()
       latest_epoch = ckpts[-1] if len(ckpts)>0 else None
     if latest_epoch is not None:
-      gen_path = os.path.join(model_path, latest_epoch+'_netG.pth')
+      path = os.path.join(model_path, latest_epoch+'.pth')
       if self.config['global_rank'] == 0:
-        print('Loading {} generator from {}...'.format(self.config['model']['name'], gen_path))
-      data = torch.load(gen_path, map_location = lambda storage, loc: set_device(storage)) 
-      model_dict = self.netG.state_dict()
-      pretrained_dict = {k:v for k,v in data['netG'].items() if k in model_dict}
+        print('Loading model from {}...'.format(, path))
+      data = torch.load(path, map_location = lambda storage, loc: set_device(storage)) 
+      model_dict = self.model.state_dict()
+      pretrained_dict = {k:v for k,v in data['model'].items() if k in model_dict}
       model_dict.update(pretrained_dict)
-      self.netG.load_state_dict(model_dict)
-      self.optimD.load_state_dict(data['optimD'])
+      self.model.load_state_dict(model_dict)
+      self.optim.load_state_dict(data['optim'])
       self.epoch = data['epoch']
       self.iteration = data['iteration']
     else:
@@ -154,14 +152,13 @@ class BaseTrainer():
   # save parameters every eval_epoch
   def _save(self, it):
     path = os.path.join(self.config['save_dir'], str(it).zfill(5)+'.pth')
-    print('saving {} model to {} ...'.format(self.model_args['name'], path))
-    if isinstance(self.netG, torch.nn.DataParallel) or isinstance(self.model, DDP):
-      netD = self.model.module
+    print('saving model to {} ...'.format(path))
+    if isinstance(self.model, torch.nn.DataParallel) or isinstance(self.model, DDP):
+      model = self.model.module
     else:
-      netG = self.model
-    torch.save({'netD': netD.state_dict(), 
-      'optimG': self.optimG.state_dict(),
-      'optimD': self.optimD.state_dict(),
+      model = self.model
+    torch.save({'model': model.state_dict(), 
+      'optim': self.optim.state_dict(),
       'epoch': self.epoch, 'iteration': self.iteration, }, path)
     os.system('echo {} > {}'.format(str(it).zfill(5), os.path.join(self.config['save_dir'], 'latest.ckpt')))
 
@@ -178,4 +175,7 @@ class BaseTrainer():
     Training logic for an epoch
     :param epoch: Current epoch number
     """
+    raise NotImplementedError
+  
+  def adjust_learning_rate(self,)
     raise NotImplementedError
