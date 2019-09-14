@@ -8,11 +8,6 @@ from numpy.lib.stride_tricks import as_strided as ast
 from skimage.measure import compare_ssim, compare_psnr, compare_nrmse
 
 import torch
-from torchvision import transforms
-from torchvision.transforms import ToPILImage
-
-from utils.i3d import InceptionI3d
-from utils.transform import Stack, ToTorchFormatTensor
 
 
 def ssim(frames1, frames2):
