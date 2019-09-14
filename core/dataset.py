@@ -20,7 +20,7 @@ class Dataset(torch.utils.data.Dataset):
     self.data = [os.path.join(data_args['zip_root'], data_args['name'], i) 
       for i in np.genfromtxt(os.path.join(data_args['flist_root'], data_args['name'], split+'.flist'), dtype=np.str, encoding='utf-8')]
     self.mask = [os.path.join(data_args['zip_root'], 'mask', i)
-      for i in np.genfromtxt(os.path.join(data_args['flist_root'], data_args['name'], 'mask.flist'), dtype=np.str, encoding='utf-8')]
+      for i in np.genfromtxt(os.path.join(data_args['flist_root'], 'mask.flist'), dtype=np.str, encoding='utf-8')]
     self.mask.sort()
     self.data.sort()
     if debug:
@@ -47,14 +47,14 @@ class Dataset(torch.utils.data.Dataset):
     m_index = random.randint(0, len(self.mask)) if self.split == 'train' else index
     mask_path = os.path.dirname(self.mask[m_index]) + '.zip'
     mask_name = os.path.basename(self.mask[m_index])
-    mask = ZipReader.imread(mask_path, mask_name).convert('RGB')
+    mask = ZipReader.imread(mask_path, mask_name).convert('L')
     mask = mask.resize((self.w, self.h), Image.ANTIALIAS)
     # augment 
     if self.split == 'train': 
       img = transforms.RandomHorizontalFlip()(img)
       img = transforms.ColorJitter(0.05, 0.05, 0.05, 0.05)(img)
       mask = transforms.RandomHorizontalFlip()(mask)
-      mask = mask.ratate(random.randint(0,45), expand=True)
+      mask = mask.rotate(random.randint(0,45), expand=True)
       mask = filter(ImageFilter.MaxFilter(np.randint(2,5)))
     return F.to_tensor(img)*2-1., F.to_tensor(mask), img_name
 

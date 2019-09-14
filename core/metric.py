@@ -22,7 +22,7 @@ def psnr(frames1, frames2):
         error += compare_psnr(frames1[i], frames2[i])
     return error/len(frames1)
 
-def mse(frames1, frames2):
+def rmse(frames1, frames2):
     error = 0
     for i in range(len(frames1)):
         error += compare_nrmse(frames1[i], frames2[i])

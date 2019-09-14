@@ -8,7 +8,6 @@ import glob
 import argparse
 import urllib.request
 from PIL import Image, ImageFilter
-import importlib
 from numpy import random
 import numpy as np
 

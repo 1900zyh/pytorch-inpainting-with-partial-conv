@@ -10,3 +10,4 @@ masks
 *.png
 debug.*
 __pycache__
+events.*
