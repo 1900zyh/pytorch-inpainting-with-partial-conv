@@ -37,7 +37,7 @@ class BaseTrainer():
 
     # setup data set and data loader
     self.train_dataset = Dataset(config['data_loader'], debug=debug, split='train')
-    self.valid_dataset = Dataset(config['data_loader'], debug=debug, split='valid')
+    self.valid_dataset = Dataset(config['data_loader'], debug=debug, split='test')
     worker_init_fn = partial(set_seed, base=config['seed'])
     self.train_sampler = None
     self.valid_sampler = None
@@ -51,7 +51,7 @@ class BaseTrainer():
       shuffle=(self.train_sampler is None), num_workers=config['data_loader']['num_workers'],
       pin_memory=True, sampler=self.train_sampler, worker_init_fn=worker_init_fn)
     self.valid_loader = DataLoader(self.valid_dataset, 
-      batch_size= 4, shuffle=None, num_workers=config['data_loader']['num_workers'],
+      batch_size= 1, shuffle=None, num_workers=config['data_loader']['num_workers'],
       pin_memory=True, sampler=self.valid_sampler, worker_init_fn=worker_init_fn)
 
     # set loss functions and evaluation metrics

@@ -25,6 +25,7 @@ class Trainer(BaseTrainer):
     self.pretrain = True
     if debug:
       self.config['trainer']['save_freq'] = 10
+      self.config['trainer']['valid_freq'] = 10
       self.config['lr_scheduler']['step_size'] = 0
 
   # process input and calculate loss every training epoch
@@ -59,6 +60,7 @@ class Trainer(BaseTrainer):
       # saving and evaluating
       if self.iteration % self.train_args['save_freq'] == 0:
         self._save(self.iteration//self.train_args['save_freq'])
+      if self.iteration % self.train_args['valid_freq'] == 0:
         self._eval_epoch(self.iteration//self.train_args['save_freq'])
         if self.config['global_rank'] == 0:
           print('[**] Training till {} in Rank {}\n'.format(
@@ -82,9 +84,11 @@ class Trainer(BaseTrainer):
         output, _ = self.model(inpts, masks)
       grid_img = make_grid(torch.cat([unnormalize(images), unnormalize(masks*images),
         unnormalize(output), unnormalize(masks*images+(1-masks)*output)], dim=0), nrow=4)
-      save_image(grid_img, os.path.join(path, '{}'.format(names[0])))
+      save_image(grid_img, os.path.join(path, '{}_stack.png'.format(names[0].split('.')[0])))
       orig_imgs = postprocess(images)
       comp_imgs = postprocess(masks*images+(1-masks)*output)
+      Image.fromarray(orig_imgs[0]).save(os.path.join(path, '{}_orig.png'.format(names[0].split('.')[0])))
+      Image.fromarray(comp_imgs[0]).save(os.path.join(path, '{}_comp.png'.format(names[0].split('.')[0])))
       for key, val in self.metrics.items():
         evaluation_scores[key] += val(orig_imgs, comp_imgs)
       index += 1
