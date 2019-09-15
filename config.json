@@ -50,11 +50,11 @@
     },
     "lr_scheduler": {
         "type": "StepLR",
-        "step_size": 5000000,
+        "step_size": 500000,
         "gamma": 0.97
     },
     "trainer": {
-        "iterations": 10000000,
+        "iterations": 1000000,
         "save_freq": 10000,
         "valid_freq": 20000,
         "verbosity": 2,
