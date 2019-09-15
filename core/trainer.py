@@ -87,18 +87,19 @@ class Trainer(BaseTrainer):
       for key, val in self.metrics.items():
         evaluation_scores[key] += val(orig_imgs, comp_imgs)
       index += 1
-    for key, val in evaluation_scores:
-      tensor = torch.IntTensor([val])
-      dist.all_reduce(tensor, op=dist.reduce_op.MEAN, group=self.config['group'])
-      evaluation_scores[key] = tensor.numpy()
-    evaluation_message = ' '.join(['{}: {:5f},'.format(key, val/len(self.valid_loader)) \
+    for key, val in evaluation_scores.items():
+      group = dist.new_group(ranks=list(range(self.config['world_size'])))
+      tensor = set_device(torch.FloatTensor([val/index]))
+      dist.all_reduce(tensor, op=dist.ReduceOp.SUM, group=group)
+      evaluation_scores[key] = tensor.cpu().item()
+    evaluation_message = ' '.join(['{}: {:5f},'.format(key, val/self.config['world_size']) \
                         for key,val in evaluation_scores.items()])
-    print('[**] Evaluation: {}'.format(evaluation_message))
+    if self.config['global_rank'] == 0:
+      print('[**] Evaluation: {}'.format(evaluation_message))
 
 
   def adjust_learning_rate(self,):
     if self.pretrain and self.iteration > self.config['lr_scheduler']['step_size']:
-      print('freeze')
       self.pretrain = False
       for param_group in self.optim.param_groups:
         param_group['lr'] = 5e-5

@@ -49,8 +49,7 @@ class BaseTrainer():
       shuffle=(self.train_sampler is None), num_workers=config['data_loader']['num_workers'],
       pin_memory=True, sampler=self.train_sampler, worker_init_fn=worker_init_fn)
     self.valid_loader = DataLoader(self.valid_dataset, 
-      batch_size= config['data_loader']['batch_size'] // config['world_size'],
-      shuffle=None, num_workers=config['data_loader']['num_workers'],
+      batch_size= 4, shuffle=None, num_workers=config['data_loader']['num_workers'],
       pin_memory=True, sampler=self.valid_sampler)
 
     # set loss functions and evaluation metrics
@@ -62,14 +61,13 @@ class BaseTrainer():
     self.metrics = {met: getattr(module_metric, met) for met in config['metrics']}
 
     # setup models 
-    self.model = PConvUNet()
-    self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model, self.config['group'])
-    self.model = set_device(self.model)
+    self.model = set_device(PConvUNet())
     self.optim_args = self.config['optimizer']
     self.optim = optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()),
       lr = self.optim_args['lr'])
     self._load()
     if config['distributed']:
+      self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
       self.model = DDP(self.model, device_ids=[config['global_rank']], output_device=config['global_rank'], 
         broadcast_buffers=True)#, find_unused_parameters=False)
     
@@ -146,16 +144,17 @@ class BaseTrainer():
       
   # save parameters every eval_epoch
   def _save(self, it):
-    path = os.path.join(self.config['save_dir'], str(it).zfill(5)+'.pth')
-    print('\nsaving model to {} ...'.format(path))
-    if isinstance(self.model, torch.nn.DataParallel) or isinstance(self.model, DDP):
-      model = self.model.module
-    else:
-      model = self.model
-    torch.save({'model': model.state_dict(), 
-      'optim': self.optim.state_dict(),
-      'epoch': self.epoch, 'iteration': self.iteration, }, path)
-    os.system('echo {} > {}'.format(str(it).zfill(5), os.path.join(self.config['save_dir'], 'latest.ckpt')))
+    if self.config['global_rank'] == 0:
+      path = os.path.join(self.config['save_dir'], str(it).zfill(5)+'.pth')
+      print('\nsaving model to {} ...'.format(path))
+      if isinstance(self.model, torch.nn.DataParallel) or isinstance(self.model, DDP):
+        model = self.model.module
+      else:
+        model = self.model
+      torch.save({'model': model.state_dict(), 
+        'optim': self.optim.state_dict(),
+        'epoch': self.epoch, 'iteration': self.iteration, }, path)
+      os.system('echo {} > {}'.format(str(it).zfill(5), os.path.join(self.config['save_dir'], 'latest.ckpt')))
 
   # process input and calculate loss every training epoch
   def _train_epoch(self,):
