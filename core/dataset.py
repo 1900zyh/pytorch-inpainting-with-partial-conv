@@ -41,6 +41,7 @@ class Dataset(torch.utils.data.Dataset):
     return len(self.data)
 
   def __getitem__(self, index):
+    return self.load_item(index)
     try:
       item = self.load_item(index)
     except:

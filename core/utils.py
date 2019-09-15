@@ -34,7 +34,7 @@ class ZipReader(object):
     if path in file_dict:
       return file_dict[path]
     else:
-      file_handle = zipfile.ZipFile(path, 'r')
+      file_handle = zipfile.ZipFile(path, mode='r', allowZip64=True)
       file_dict[path] = file_handle
       return file_dict[path]
 
