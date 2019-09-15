@@ -44,13 +44,15 @@ class BaseTrainer():
     if config['distributed']:
       self.train_sampler = DistributedSampler(self.train_dataset, 
         num_replicas=config['world_size'], rank=config['global_rank'])
+      self.valid_sampler = DistributedSampler(self.valid_dataset, 
+        num_replicas=config['world_size'], rank=config['local_rank'])
     self.train_loader = DataLoader(self.train_dataset, 
       batch_size= config['data_loader']['batch_size'] // config['world_size'],
       shuffle=(self.train_sampler is None), num_workers=config['data_loader']['num_workers'],
       pin_memory=True, sampler=self.train_sampler, worker_init_fn=worker_init_fn)
     self.valid_loader = DataLoader(self.valid_dataset, 
       batch_size= 4, shuffle=None, num_workers=config['data_loader']['num_workers'],
-      pin_memory=True, sampler=self.valid_sampler)
+      pin_memory=True, sampler=self.valid_sampler, worker_init_fn=worker_init_fn)
 
     # set loss functions and evaluation metrics
     self.losses = {entry['name']: (

@@ -68,6 +68,7 @@ class Trainer(BaseTrainer):
 
   def _eval_epoch(self, it):
     self.model.eval()
+    self.valid_sampler.set_epoch(it)
     path = os.path.join(self.config['save_dir'], 'samples_{}'.format(str(it).zfill(5)))
     os.makedirs(path, exist_ok=True)
     if self.config['global_rank'] == 0:
@@ -88,9 +89,8 @@ class Trainer(BaseTrainer):
         evaluation_scores[key] += val(orig_imgs, comp_imgs)
       index += 1
     for key, val in evaluation_scores.items():
-      group = dist.new_group(ranks=list(range(self.config['world_size'])))
       tensor = set_device(torch.FloatTensor([val/index]))
-      dist.all_reduce(tensor, op=dist.ReduceOp.SUM, group=group)
+      dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
       evaluation_scores[key] = tensor.cpu().item()
     evaluation_message = ' '.join(['{}: {:5f},'.format(key, val/self.config['world_size']) \
                         for key,val in evaluation_scores.items()])
