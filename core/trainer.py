@@ -24,7 +24,7 @@ class Trainer(BaseTrainer):
     self.pretrain = True
     if debug:
       self.config['trainer']['save_freq'] = 10
-      self.config['lr_scheduler']['stpep_size'] = 100
+      self.config['lr_scheduler']['step_size'] = 0
 
   # process input and calculate loss every training epoch
   def _train_epoch(self):
@@ -66,6 +66,7 @@ class Trainer(BaseTrainer):
         break
 
   def _eval_epoch(self, it):
+    self.model.eval()
     path = os.path.join(self.config['save_dir'], 'samples_{}'.format(str(it).zfill(5)))
     os.makedirs(path, exist_ok=True)
     print('start evaluating ...')
@@ -91,11 +92,12 @@ class Trainer(BaseTrainer):
 
   def adjust_learning_rate(self,):
     if self.pretrain and self.iteration > self.config['lr_scheduler']['step_size']:
+      print('freeze')
       self.pretrain = False
       for param_group in self.optim.param_groups:
         param_group['lr'] = 5e-5
       for name, module in self.model.named_modules():
-        if isinstance(module, nn.BatchNorm2d) and 'enc' in name:
+        if (isinstance(module, nn.BatchNorm2d) or isinstance(module, nn.SyncBatchNorm)) and 'enc' in name:
           module.eval()
       
       

@@ -59,7 +59,9 @@ class BaseTrainer():
     self.metrics = {met: getattr(module_metric, met) for met in config['metrics']}
 
     # setup models 
-    self.model = set_device(PConvUNet())
+    self.model = PConvUNet()
+    # self.model = troch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
+    self.model = set_device(self.model)
     self.optim_args = self.config['optimizer']
     self.optim = optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()),
       lr = self.optim_args['lr'])
