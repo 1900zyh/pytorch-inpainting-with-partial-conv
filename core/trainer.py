@@ -20,12 +20,14 @@ class Trainer(BaseTrainer):
   def __init__(self, config, debug=False):
     super().__init__(config, debug=debug)
     # additional things can be set here
+    self.fine_tune = False
     
 
   # process input and calculate loss every training epoch
   def _train_epoch(self):
     progbar = Progbar(len(self.train_dataset), width=20, stateful_metrics=['epoch', 'iter'])
     for images, masks, names in self.train_loader:
+      self.adjust_learning_rate()
       self.model.train()
       # self.adjust_learning_rate()
       self.iteration += 1
@@ -42,6 +44,7 @@ class Trainer(BaseTrainer):
       self.optim.step()
       self.add_summary(self.writer, 'lr/LR', self.optim.param_groups[0]['lr'])
 
+      # logs
       mae = torch.mean(torch.abs(images - pred_img)) / torch.mean(masks)
       speed = images.size(0)/(time.time() - end)*self.config['world_size']
       logs = [("epoch", self.epoch),("iter", self.iteration),("lr", self.get_lr()),
@@ -50,6 +53,13 @@ class Trainer(BaseTrainer):
         progbar.add(len(images)*self.config['world_size'], values=logs \
           if self.train_args['verbosity'] else [x for x in logs if not x[0].startswith('l_')])
 
+      # saving and evaluating
+      if self.config['global_rank'] == 0:
+        if self.iteration % self.train_args['save_freq'] == 0:
+          self._save(self.iteration//self.train_args['save_freq'])
+          self._eval_epoch(self.iteration//self.train_args['save_freq'])
+          print('[**] Training till {} in Rank {}\n'.format(
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.config['global_rank']))
 
   def _eval_epoch(self, it):
     self.model.eval()
@@ -63,10 +73,10 @@ class Trainer(BaseTrainer):
         inpts = images*masks
         images, inpts, masks = set_device([images, inpts, masks])
         output, _ = self.model(inpts, masks)
-        orig_imgs = postprocess(images)
-        comp_imgs = postprocess((1.-masks)*output+masks*images)
-        pred_imgs = postprocess(output)
-        mask_imgs = postprocess(inpts)
+        orig_imgs = postprocess(images.cpu())
+        comp_imgs = postprocess(((1.-masks)*output+masks*images).cpu())
+        pred_imgs = postprocess(output.cpu())
+        mask_imgs = postprocess(inpts.cpu())
         grid_img = make_grid(torch.cat([orig_imgs, mask_imgs, pred_imgs, comp_imgs], dim=0), nrow=4)
         save_image(grid_img, os.path.join(path, '{}.png'.format(str(index).zfill(5))))
         for key, val in self.metrics.items():
@@ -76,3 +86,12 @@ class Trainer(BaseTrainer):
                           for key,val in evaluation_scores.items()])
       print('[**] Evaluation: {}'.format(evaluation_message))
 
+
+  def adjust_learning_rate(self,):
+    if self.iteration > self.config['lr_scheduler']['step_size']:
+      self.fine_tune = True
+    if self.fine_tune:  
+      for param_group in self.optim.param_groups:
+        param_group['lr'] = 5e-5
+      
+      

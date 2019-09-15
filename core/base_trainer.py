@@ -45,10 +45,10 @@ class BaseTrainer():
         num_replicas=config['world_size'], rank=config['global_rank'])
     self.train_loader = DataLoader(self.train_dataset, 
       batch_size= config['data_loader']['batch_size'] // config['world_size'],
-      shuffle=(self.train_sampler is None), num_workers=4,
+      shuffle=(self.train_sampler is None), num_workers=config['data_loader']['num_workers'],
       pin_memory=True, sampler=self.train_sampler, worker_init_fn=worker_init_fn)
     self.valid_loader = DataLoader(dataset=self.valid_dataset, 
-      batch_size=config['data_loader']['batch_size'], shuffle=False)
+      batch_size=config['data_loader']['batch_size']//2, shuffle=False)
 
     # set loss functions and evaluation metrics
     self.losses = {entry['name']: (
@@ -106,18 +106,9 @@ class BaseTrainer():
   def train(self):
     while True:
       self.epoch += 1
-      if self.epoch > self.train_args['epochs']:
-        break
       if self.config['distributed']:
         self.train_sampler.set_epoch(self.epoch)
-      # self.adjust_learning_rate()
       self._train_epoch()
-      if self.config['global_rank'] == 0:
-        if self.epoch % self.train_args['save_freq'] == 0:
-          self._save(self.epoch)
-          self._eval_epoch(self.epoch)
-          print('[**] Training till {} in Rank {}\n'.format(
-            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.config['global_rank']))
     print('\nEnd training....')
 
 
