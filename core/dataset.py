@@ -41,7 +41,6 @@ class Dataset(torch.utils.data.Dataset):
     return len(self.data)
 
   def __getitem__(self, index):
-    return self.load_item(index)
     try:
       item = self.load_item(index)
     except:
@@ -55,7 +54,7 @@ class Dataset(torch.utils.data.Dataset):
     img_name = os.path.basename(self.data[index])
     img = ZipReader.imread(img_path, img_name).convert('RGB')
     # load mask 
-    m_index = random.randint(0, len(self.mask)) if self.split == 'train' else index
+    m_index = random.randint(0, len(self.mask)-1) if self.split == 'train' else index
     mask_path = os.path.dirname(self.mask[m_index]) + '.zip'
     mask_name = os.path.basename(self.mask[m_index])
     mask = ZipReader.imread(mask_path, mask_name).convert('RGB')

@@ -109,6 +109,8 @@ class BaseTrainer():
       if self.config['distributed']:
         self.train_sampler.set_epoch(self.epoch)
       self._train_epoch()
+      if self.iteration > self.config['trainer']['iterations']:
+        break
     print('\nEnd training....')
 
 

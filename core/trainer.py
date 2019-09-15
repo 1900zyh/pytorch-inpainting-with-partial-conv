@@ -63,6 +63,8 @@ class Trainer(BaseTrainer):
           self._eval_epoch(self.iteration//self.train_args['save_freq'])
           print('[**] Training till {} in Rank {}\n'.format(
             datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.config['global_rank']))
+      if self.iteration > self.config['trainer']['iterations']:
+        break
 
   def _eval_epoch(self, it):
     self.model.eval()
