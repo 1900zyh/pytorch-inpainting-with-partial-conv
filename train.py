@@ -13,8 +13,7 @@ from core.trainer import Trainer
 
 
 parser = argparse.ArgumentParser(description="Pconv")
-parser.add_argument('-c', '--config', type=str, default='config.json')
-parser.add_argument('-n', '--dataname', type=str, default='places2') 
+parser.add_argument('-c', '--config', type=str, default=None, required=True)
 parser.add_argument('-p', '--port', default='23455', type=str)
 parser.add_argument('-e', '--exam', action='store_true')
 args = parser.parse_args()
@@ -49,7 +48,6 @@ if __name__ == "__main__":
   
   # loading configs 
   config = json.load(open(args.config))
-  config['data_loader']['name'] = args.dataname
 
   # setup distributed parallel training environments
   world_size = ompi_size()

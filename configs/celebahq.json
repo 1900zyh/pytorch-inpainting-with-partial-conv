@@ -1,0 +1,70 @@
+{
+    "save_dir": "release_model/",
+    "seed": 2020,
+    "data_loader": {
+        "name": "celebahq", 
+        "zip_root": "../datazip",
+        "flist_root": "../flist",
+        "w": 512,
+        "h": 512,
+        "batch_size": 16,
+        "num_workers": 4
+    },
+    "losses": [
+        {
+            "name": "valid",
+            "weight": 1.0,
+            "input": "RGB"
+        },
+        {
+            "name": "hole",
+            "weight": 6.0,
+            "input": "RGB"
+        },
+        {
+            "name": "perceptual",
+            "weight": 0.05,
+            "input": "feat"
+        },
+        {
+            "name": "style",
+            "weight": 120,
+            "input": "feat"
+        },
+        {
+            "name": "tv",
+            "weight": 0.1,
+            "input": "RGB"
+        }
+    ],
+    "metrics": [
+        "rmse",
+        "psnr",
+        "ssim"
+    ],
+    "optimizer": {
+        "type": "Adam",
+        "lr": 0.0002,
+        "weight_decay": 0,
+        "amsgrad": true
+    },
+    "lr_scheduler": {
+        "type": "StepLR",
+        "step_size": 100000,
+        "gamma": 0.97
+    },
+    "trainer": {
+        "iterations": 200000,
+        "save_freq": 10000,
+        "valid_freq": 20000,
+        "verbosity": 2,
+        "monitor": "test0_p_dist",
+        "monitor_mode": "min",
+        "mask_only": true,
+        "pretrained_load_strict": false
+    },
+    "logger": {
+        "log_step": 100,
+        "tensorboardX": true
+    }
+}
