@@ -28,10 +28,12 @@ class Dataset(torch.utils.data.Dataset):
     self.data.sort()
     
     self.img_tf = transforms.Compose(
-      [transforms.Resize(size=(self.w, self.h)), transforms.ToTensor(),
-      transforms.Normalize(mean=MEAN, std=STD)])
+      [transforms.Resize(size=(self.w, self.h)), 
+       transforms.ToTensor(),
+       transforms.Normalize(mean=MEAN, std=STD)])
     self.mask_tf = transforms.Compose(
-      [transforms.Resize(size=(self.w, self.h)), transforms.ToTensor()])
+      [transforms.Resize(size=(self.w, self.h), interpolation=Image.NEAREST ),
+       transforms.ToTensor()])
     if debug:
       self.data = self.data[:100]
 
@@ -55,7 +57,7 @@ class Dataset(torch.utils.data.Dataset):
     m_index = random.randint(0, len(self.mask)) if self.split == 'train' else index
     mask_path = os.path.dirname(self.mask[m_index]) + '.zip'
     mask_name = os.path.basename(self.mask[m_index])
-    mask = ZipReader.imread(mask_path, mask_name).convert('L')
+    mask = ZipReader.imread(mask_path, mask_name).convert('RGB')
     # augment 
     if self.split == 'train': 
       img = transforms.RandomHorizontalFlip()(img)

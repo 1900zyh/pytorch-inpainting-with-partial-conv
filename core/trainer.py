@@ -30,11 +30,11 @@ class Trainer(BaseTrainer):
       # self.adjust_learning_rate()
       self.iteration += 1
       end = time.time()
-      inpts = images*(1.-masks)
+      inpts = images*masks
       inpts, masks = set_device([inpts, masks])
       self.optim.zero_grad()
       pred_img = self.model(inpts, masks)
-      complete_img = (pred_img * masks) + (images * (1. - masks))
+      complete_img = pred_img * (1.-masks) + images * masks
       
       # calculate loss and update weights for Generator
       loss = self.get_non_gan_loss(pred_img, images, masks)
@@ -60,11 +60,11 @@ class Trainer(BaseTrainer):
     with torch.no_grad():
       index = 0
       for images, masks, names in self.valid_loader:
-        inpts = images*(1.-masks)
+        inpts = images*masks
         inpts, masks = set_device([inpts, masks])
         output = self.model(inpts, masks)
         orig_imgs = postprocess(images)
-        comp_imgs = postprocess(masks*output+(1.-masks)*images)
+        comp_imgs = postprocess((1.-masks)*output+masks*images)
         pred_imgs = postprocess(output)
         mask_imgs = postprocess(inpts)
         grid_img = make_grid(torch.cat([orig_imgs, mask_imgs, pred_imgs, comp_imgs], dim=0), nrow=4)
