@@ -23,7 +23,7 @@ class Dataset(torch.utils.data.Dataset):
     self.data = [os.path.join(data_args['zip_root'], data_args['name'], i) 
       for i in np.genfromtxt(os.path.join(data_args['flist_root'], data_args['name'], split+'.flist'), dtype=np.str, encoding='utf-8')]
     self.mask = [os.path.join(data_args['zip_root'], 'mask', i)
-      for i in np.genfromtxt(os.path.join(data_args['flist_root'], 'mask_{}.flist'.format(split)), dtype=np.str, encoding='utf-8')]
+      for i in np.genfromtxt(os.path.join(data_args['flist_root'], data_args['name'], 'mask_{}.flist'.format(split)), dtype=np.str, encoding='utf-8')]
     self.mask.sort()
     self.data.sort()
     
