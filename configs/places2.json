@@ -7,7 +7,7 @@
         "flist_root": "../flist",
         "w": 512,
         "h": 512,
-        "batch_size": 16,
+        "batch_size": 8,
         "num_workers": 4
     },
     "losses": [
