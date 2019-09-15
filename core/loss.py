@@ -12,7 +12,7 @@ def gram_matrix(feat):
 
 
 def tv(pred_img, real_img, mask):
-    output_comp = pred_img*mask + real_img*(1.-mask)
+    output_comp = pred_img*(1.-mask) + real_img*mask
     # shift one pixel and get difference (for both x and y direction)
     loss = torch.mean(torch.abs(output_comp[:, :, :, :-1] - output_comp[:, :, :, 1:])) + \
         torch.mean(torch.abs(output_comp[:, :, :-1, :] - output_comp[:, :, 1:, :]))
@@ -20,23 +20,23 @@ def tv(pred_img, real_img, mask):
 
 
 def hole(pred_img, real_img, mask):
-    return nn.L1Loss(mask*pred_img, mask*real_img) / np.mean(mask)
+    return nn.L1Loss()((1-mask)*pred_img, (1-mask)*real_img) / torch.mean(1-mask)
 
 
 def valid(pred_img, real_img, mask):
-    return nn.L1Loss((1.-mask)*pred_img, (1.-mask)*real_img) / np.mean(1.-mask)
+    return nn.L1Loss()(mask*pred_img, mask*real_img) / torch.mean(mask)
 
 
 def perceptual(pred_feat, real_feat, mask):
     loss = 0.0
     for i in range(3):
-        loss += nn.L1Loss(pred_feat[i], real_feat[i])
+        loss += nn.L1Loss()(pred_feat[i], real_feat[i])
     return loss 
 
 
 def style(pred_feat, real_feat, mask):
     loss = 0.0
     for i in range(3):
-        loss += nn.L1Loss(gram_matrix(pred_feat[i]), gram_matrix(real_feat[i]))
+        loss += nn.L1Loss()(gram_matrix(pred_feat[i]), gram_matrix(real_feat[i]))
     return loss
 

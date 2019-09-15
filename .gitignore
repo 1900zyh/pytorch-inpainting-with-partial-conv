@@ -11,3 +11,4 @@ masks
 debug.*
 __pycache__
 events.*
+*.ckpt

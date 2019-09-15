@@ -31,9 +31,9 @@ class Trainer(BaseTrainer):
       self.iteration += 1
       end = time.time()
       inpts = images*masks
-      inpts, masks = set_device([inpts, masks])
+      images, inpts, masks = set_device([images, inpts, masks])
       self.optim.zero_grad()
-      pred_img = self.model(inpts, masks)
+      pred_img, _ = self.model(inpts, masks)
       complete_img = pred_img * (1.-masks) + images * masks
       
       # calculate loss and update weights for Generator
@@ -62,7 +62,7 @@ class Trainer(BaseTrainer):
       for images, masks, names in self.valid_loader:
         inpts = images*masks
         inpts, masks = set_device([inpts, masks])
-        output = self.model(inpts, masks)
+        output, _ = self.model(inpts, masks)
         orig_imgs = postprocess(images)
         comp_imgs = postprocess((1.-masks)*output+masks*images)
         pred_imgs = postprocess(output)
