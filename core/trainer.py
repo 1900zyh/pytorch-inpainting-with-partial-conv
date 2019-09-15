@@ -13,15 +13,18 @@ import torch
 import torch.nn as nn
 from torchvision.utils import make_grid, save_image
 
-from core.utils import set_seed, Progbar, postprocess, set_device
+from core.utils import set_seed, Progbar, set_device
+from core.utils import postprocess, unnormalize
 from core.base_trainer import BaseTrainer
 
 class Trainer(BaseTrainer):
   def __init__(self, config, debug=False):
     super().__init__(config, debug=debug)
     # additional things can be set here
-    self.fine_tune = False
-    
+    self.pretrain = True
+    if debug:
+      self.config['trainer']['save_freq'] = 10
+      self.config['lr_scheduler']['stpep_size'] = 100
 
   # process input and calculate loss every training epoch
   def _train_epoch(self):
@@ -73,12 +76,11 @@ class Trainer(BaseTrainer):
         inpts = images*masks
         images, inpts, masks = set_device([images, inpts, masks])
         output, _ = self.model(inpts, masks)
-        orig_imgs = postprocess(images.cpu())
-        comp_imgs = postprocess(((1.-masks)*output+masks*images).cpu())
-        pred_imgs = postprocess(output.cpu())
-        mask_imgs = postprocess(inpts.cpu())
-        grid_img = make_grid(torch.cat([orig_imgs, mask_imgs, pred_imgs, comp_imgs], dim=0), nrow=4)
+        grid_img = make_grid(torch.cat([unnormalize(images), unnormalize(masks*images),
+            unnormalize(output), unnormalize(masks*images+(1-masks)*output)], dim=0), nrow=4)
         save_image(grid_img, os.path.join(path, '{}.png'.format(str(index).zfill(5))))
+        orig_imgs = postprocess(images)
+        comp_imgs = postprocess(masks*images+(1-masks)*output)
         for key, val in self.metrics.items():
           evaluation_scores[key] += val(orig_imgs, comp_imgs)
         index += 1
@@ -88,10 +90,12 @@ class Trainer(BaseTrainer):
 
 
   def adjust_learning_rate(self,):
-    if self.iteration > self.config['lr_scheduler']['step_size']:
-      self.fine_tune = True
-    if self.fine_tune:  
+    if self.pretrain and self.iteration > self.config['lr_scheduler']['step_size']:
+      self.pretrain = False
       for param_group in self.optim.param_groups:
         param_group['lr'] = 5e-5
+      for name, module in self.model.named_modules():
+        if isinstance(module, nn.BatchNorm2d) and 'enc' in name:
+          module.eval()
       
       

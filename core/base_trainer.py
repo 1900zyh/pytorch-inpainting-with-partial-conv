@@ -48,7 +48,7 @@ class BaseTrainer():
       shuffle=(self.train_sampler is None), num_workers=config['data_loader']['num_workers'],
       pin_memory=True, sampler=self.train_sampler, worker_init_fn=worker_init_fn)
     self.valid_loader = DataLoader(dataset=self.valid_dataset, 
-      batch_size=config['data_loader']['batch_size']//2, shuffle=False)
+      batch_size=4, shuffle=False)
 
     # set loss functions and evaluation metrics
     self.losses = {entry['name']: (

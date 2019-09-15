@@ -54,9 +54,16 @@ def set_device(args):
       return args.cuda()
   return args
 
-def postprocess(img): 
+def postprocess(img):
+  img = unnormalize(img)*255
+  img = img.permute(0,2,3,1)
+  img = img.int().cpu().numpy().astype(np.uint8)
+  return img
+
+
+def unnormalize(img): 
   img = img.transpose(1,3)
-  img = img * torch.Tensor(STD) + torch.Tensor(MEAN)
+  img = img * torch.Tensor(STD).cuda() + torch.Tensor(MEAN).cuda()
   img = img.transpose(1,3)
   return img
 
