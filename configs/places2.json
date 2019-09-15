@@ -56,7 +56,7 @@
     "trainer": {
         "iterations": 1000000,
         "save_freq": 10000,
-        "valid_freq": 20000,
+        "valid_freq": 100000,
         "verbosity": 2,
         "monitor": "test0_p_dist",
         "monitor_mode": "min",
