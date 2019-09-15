@@ -71,7 +71,7 @@ class BaseTrainer():
     # set summary writer
     self.writer = None
     if self.config['global_rank'] == 0 or (not config['distributed']):
-      self.writer = SummaryWriter(config['save_dir'])
+      self.writer = SummaryWriter(os.path.join(config['save_dir'], 'logs'))
     self.samples_path = os.path.join(config['save_dir'], 'samples')
     self.results_path = os.path.join(config['save_dir'], 'results')
     

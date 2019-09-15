@@ -61,7 +61,7 @@ class Trainer(BaseTrainer):
       index = 0
       for images, masks, names in self.valid_loader:
         inpts = images*masks
-        inpts, masks = set_device([inpts, masks])
+        images, inpts, masks = set_device([images, inpts, masks])
         output, _ = self.model(inpts, masks)
         orig_imgs = postprocess(images)
         comp_imgs = postprocess((1.-masks)*output+masks*images)

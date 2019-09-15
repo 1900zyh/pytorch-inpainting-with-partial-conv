@@ -55,9 +55,9 @@ def set_device(args):
   return args
 
 def postprocess(img): 
-  img = img * torch.Tensor(STD).unsqueeze(0) + torch.Tensor(MEAN).unsqueeze(0)
-  img = img.permute(0, 2, 3, 1)
-  img = img.int().cpu().numpy().astype(np.uint8)
+  img = img.transpose(1,3)
+  img = img * torch.Tensor(STD) + torch.Tensor(MEAN)
+  img = img.transpose(1,3)
   return img
 
 
