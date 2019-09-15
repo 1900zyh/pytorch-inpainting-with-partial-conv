@@ -40,6 +40,7 @@ class BaseTrainer():
     self.valid_dataset = Dataset(config['data_loader'], debug=debug, split='valid')
     worker_init_fn = partial(set_seed, base=config['seed'])
     self.train_sampler = None
+    self.valid_sampler = None
     if config['distributed']:
       self.train_sampler = DistributedSampler(self.train_dataset, 
         num_replicas=config['world_size'], rank=config['global_rank'])
@@ -47,8 +48,10 @@ class BaseTrainer():
       batch_size= config['data_loader']['batch_size'] // config['world_size'],
       shuffle=(self.train_sampler is None), num_workers=config['data_loader']['num_workers'],
       pin_memory=True, sampler=self.train_sampler, worker_init_fn=worker_init_fn)
-    self.valid_loader = DataLoader(dataset=self.valid_dataset, 
-      batch_size=4, shuffle=False)
+    self.valid_loader = DataLoader(self.valid_dataset, 
+      batch_size= config['data_loader']['batch_size'] // config['world_size'],
+      shuffle=None, num_workers=config['data_loader']['num_workers'],
+      pin_memory=True, sampler=self.valid_sampler)
 
     # set loss functions and evaluation metrics
     self.losses = {entry['name']: (
@@ -60,7 +63,7 @@ class BaseTrainer():
 
     # setup models 
     self.model = PConvUNet()
-    # self.model = troch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
+    self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model, self.config['group'])
     self.model = set_device(self.model)
     self.optim_args = self.config['optimizer']
     self.optim = optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()),

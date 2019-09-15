@@ -26,12 +26,13 @@ def main_worker(gpu, ngpus_per_node, config):
   if config['distributed']:
     torch.cuda.set_device(int(config['local_rank']))
     print('using GPU {} for training'.format(int(config['local_rank'])))
-    torch.distributed.init_process_group(backend = 'nccl', 
+    group = torch.distributed.init_process_group(backend = 'nccl', 
       init_method = config['init_method'],
       world_size = config['world_size'], 
       rank = config['global_rank'],
       group_name='mtorch'
     )
+    config['group'] = group
   set_seed(config['seed'])
 
   config['save_dir'] = os.path.join(config['save_dir'], config['data_loader']['name'])

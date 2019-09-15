@@ -11,6 +11,7 @@ from math import log10
 
 import torch
 import torch.nn as nn
+import torch.distributed as dist
 from torchvision.utils import make_grid, save_image
 
 from core.utils import set_seed, Progbar, set_device
@@ -56,10 +57,10 @@ class Trainer(BaseTrainer):
           if self.train_args['verbosity'] else [x for x in logs if not x[0].startswith('l_')])
 
       # saving and evaluating
-      if self.config['global_rank'] == 0:
-        if self.iteration % self.train_args['save_freq'] == 0:
-          self._save(self.iteration//self.train_args['save_freq'])
-          self._eval_epoch(self.iteration//self.train_args['save_freq'])
+      if self.iteration % self.train_args['save_freq'] == 0:
+        self._save(self.iteration//self.train_args['save_freq'])
+        self._eval_epoch(self.iteration//self.train_args['save_freq'])
+        if self.config['global_rank'] == 0:
           print('[**] Training till {} in Rank {}\n'.format(
             datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.config['global_rank']))
       if self.iteration > self.config['trainer']['iterations']:
@@ -69,7 +70,8 @@ class Trainer(BaseTrainer):
     self.model.eval()
     path = os.path.join(self.config['save_dir'], 'samples_{}'.format(str(it).zfill(5)))
     os.makedirs(path, exist_ok=True)
-    print('start evaluating ...')
+    if self.config['global_rank'] == 0:
+      print('start evaluating ...')
     evaluation_scores = {key: 0 for key,val in self.metrics.items()}
     index = 0
     for images, masks, names in self.valid_loader:
@@ -79,12 +81,16 @@ class Trainer(BaseTrainer):
         output, _ = self.model(inpts, masks)
       grid_img = make_grid(torch.cat([unnormalize(images), unnormalize(masks*images),
         unnormalize(output), unnormalize(masks*images+(1-masks)*output)], dim=0), nrow=4)
-      save_image(grid_img, os.path.join(path, '{}.png'.format(str(index).zfill(5))))
+      save_image(grid_img, os.path.join(path, '{}'.format(names[0])))
       orig_imgs = postprocess(images)
       comp_imgs = postprocess(masks*images+(1-masks)*output)
       for key, val in self.metrics.items():
         evaluation_scores[key] += val(orig_imgs, comp_imgs)
       index += 1
+    for key, val in evaluation_scores:
+      tensor = torch.IntTensor([val])
+      dist.all_reduce(tensor, op=dist.reduce_op.MEAN, group=self.config['group'])
+      evaluation_scores[key] = tensor.numpy()
     evaluation_message = ' '.join(['{}: {:5f},'.format(key, val/len(self.valid_loader)) \
                         for key,val in evaluation_scores.items()])
     print('[**] Evaluation: {}'.format(evaluation_message))
