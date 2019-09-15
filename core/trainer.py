@@ -31,7 +31,6 @@ class Trainer(BaseTrainer):
     progbar = Progbar(len(self.train_dataset), width=20, stateful_metrics=['epoch', 'iter'])
     for images, masks, names in self.train_loader:
       self.adjust_learning_rate()
-      self.model.train()
       # self.adjust_learning_rate()
       self.iteration += 1
       end = time.time()
@@ -67,28 +66,27 @@ class Trainer(BaseTrainer):
         break
 
   def _eval_epoch(self, it):
-    self.model.eval()
     path = os.path.join(self.config['save_dir'], 'samples_{}'.format(str(it).zfill(5)))
     os.makedirs(path, exist_ok=True)
     print('start evaluating ...')
     evaluation_scores = {key: 0 for key,val in self.metrics.items()}
-    with torch.no_grad():
-      index = 0
-      for images, masks, names in self.valid_loader:
-        inpts = images*masks
-        images, inpts, masks = set_device([images, inpts, masks])
+    index = 0
+    for images, masks, names in self.valid_loader:
+      inpts = images*masks
+      images, inpts, masks = set_device([images, inpts, masks])
+      with torch.no_grad():
         output, _ = self.model(inpts, masks)
-        grid_img = make_grid(torch.cat([unnormalize(images), unnormalize(masks*images),
-            unnormalize(output), unnormalize(masks*images+(1-masks)*output)], dim=0), nrow=4)
-        save_image(grid_img, os.path.join(path, '{}.png'.format(str(index).zfill(5))))
-        orig_imgs = postprocess(images)
-        comp_imgs = postprocess(masks*images+(1-masks)*output)
-        for key, val in self.metrics.items():
-          evaluation_scores[key] += val(orig_imgs, comp_imgs)
-        index += 1
-      evaluation_message = ' '.join(['{}: {:5f},'.format(key, val/len(self.valid_loader)) \
-                          for key,val in evaluation_scores.items()])
-      print('[**] Evaluation: {}'.format(evaluation_message))
+      grid_img = make_grid(torch.cat([unnormalize(images), unnormalize(masks*images),
+        unnormalize(output), unnormalize(masks*images+(1-masks)*output)], dim=0), nrow=4)
+      save_image(grid_img, os.path.join(path, '{}.png'.format(str(index).zfill(5))))
+      orig_imgs = postprocess(images)
+      comp_imgs = postprocess(masks*images+(1-masks)*output)
+      for key, val in self.metrics.items():
+        evaluation_scores[key] += val(orig_imgs, comp_imgs)
+      index += 1
+    evaluation_message = ' '.join(['{}: {:5f},'.format(key, val/len(self.valid_loader)) \
+                        for key,val in evaluation_scores.items()])
+    print('[**] Evaluation: {}'.format(evaluation_message))
 
 
   def adjust_learning_rate(self,):

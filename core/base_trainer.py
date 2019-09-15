@@ -142,7 +142,7 @@ class BaseTrainer():
   # save parameters every eval_epoch
   def _save(self, it):
     path = os.path.join(self.config['save_dir'], str(it).zfill(5)+'.pth')
-    print('saving model to {} ...'.format(path))
+    print('\nsaving model to {} ...'.format(path))
     if isinstance(self.model, torch.nn.DataParallel) or isinstance(self.model, DDP):
       model = self.model.module
     else:

@@ -29,5 +29,4 @@ dataset_val = Places2(args.root, img_transform, mask_transform, 'val')
 model = PConvUNet().to(device)
 load_ckpt(args.snapshot, [('model', model)])
 
-model.eval()
 evaluate(model, dataset_val, device, 'result.jpg')
