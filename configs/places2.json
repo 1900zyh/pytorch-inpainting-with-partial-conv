@@ -50,7 +50,7 @@
     },
     "lr_scheduler": {
         "type": "StepLR",
-        "step_size": 500000,
+        "step_size": 100000,
         "gamma": 0.97
     },
     "trainer": {
