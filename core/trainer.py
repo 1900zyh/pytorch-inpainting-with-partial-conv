@@ -25,11 +25,12 @@ class Trainer(BaseTrainer):
     if debug:
       self.config['trainer']['save_freq'] = 10
       self.config['trainer']['valid_freq'] = 10
-      self.config['lr_scheduler']['step_size'] = 0
+      self.config['lr_scheduler']['step_size'] = 50
 
   # process input and calculate loss every training epoch
   def _train_epoch(self):
     progbar = Progbar(len(self.train_dataset), width=20, stateful_metrics=['epoch', 'iter'])
+    mae = 0
     for images, masks, names in self.train_loader:
       self.model.train()
       self.adjust_learning_rate()
@@ -48,7 +49,8 @@ class Trainer(BaseTrainer):
       self.add_summary(self.writer, 'lr/LR', self.optim.param_groups[0]['lr'])
 
       # logs
-      mae = torch.mean(torch.abs(images - pred_img)) / torch.mean(1-masks)
+      new_mae = torch.mean(torch.abs(images - pred_img)) / torch.mean(1-masks)
+      mae = new_mae if mae == 0 else (new_mae+mae)/2
       speed = images.size(0)/(time.time() - end)*self.config['world_size']
       logs = [("epoch", self.epoch),("iter", self.iteration),("lr", self.get_lr()),
         ('mae', mae.item()), ('samples/s', speed)]
@@ -84,8 +86,8 @@ class Trainer(BaseTrainer):
       grid_img = make_grid(torch.cat([unnormalize(images), unnormalize(masks*images),
         unnormalize(output), unnormalize(masks*images+(1-masks)*output)], dim=0), nrow=4)
       save_image(grid_img, os.path.join(path, '{}_stack.png'.format(names[0].split('.')[0])))
-      orig_imgs = postprocess(images)
-      comp_imgs = postprocess(masks*images+(1-masks)*output)
+      orig_imgs = list(postprocess(images))
+      comp_imgs = list(postprocess(masks*images+(1-masks)*output))
       Image.fromarray(orig_imgs[0]).save(os.path.join(path, '{}_orig.png'.format(names[0].split('.')[0])))
       Image.fromarray(comp_imgs[0]).save(os.path.join(path, '{}_comp.png'.format(names[0].split('.')[0])))
       for key, val in self.metrics.items():
@@ -106,7 +108,7 @@ class Trainer(BaseTrainer):
       for param_group in self.optim.param_groups:
         param_group['lr'] = 5e-5
       for name, module in self.model.named_modules():
-        if (isinstance(module, nn.BatchNorm2d) or isinstance(module, nn.SyncBatchNorm)) and 'enc' in name:
+        if isinstance(module, nn.SyncBatchNorm) and 'enc' in name:
           module.eval()
       
       

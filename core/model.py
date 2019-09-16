@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torchvision import models
 
 
-def weights_init(self, init_type='normal', gain=0.02):
+def weights_init(init_type='normal', gain=0.02):
     '''
     initialize network's weights
     init_type: normal | xavier | kaiming | orthogonal
@@ -36,11 +36,7 @@ def weights_init(self, init_type='normal', gain=0.02):
                 raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
             if hasattr(m, 'bias') and m.bias is not None:
                 nn.init.constant_(m.bias.data, 0.0)
-    self.apply(init_func)
-    # propagate to children
-    for m in self.children():
-        if hasattr(m, 'init_weights'):
-            m.init_weights(init_type, gain)
+    return init_func
 
 class VGG16FeatureExtractor(nn.Module):
     def __init__(self):
@@ -120,7 +116,7 @@ class PCBActiv(nn.Module):
             self.conv = PartialConv(in_ch, out_ch, 3, 1, 1, bias=conv_bias)
 
         if bn:
-            self.bn = nn.BatchNorm2d(out_ch)
+            self.bn = nn.SyncBatchNorm(out_ch)
         if activ == 'relu':
             self.activation = nn.ReLU()
         elif activ == 'leaky':
@@ -201,7 +197,7 @@ class PConvUNet(nn.Module):
         super().train(mode)
         if self.freeze_enc_bn:
             for name, module in self.named_modules():
-                if isinstance(module, nn.BatchNorm2d) and 'enc' in name:
+                if isinstance(module, nn.SyncBatchNorm) and 'enc' in name:
                     module.eval()
 
 

@@ -69,7 +69,6 @@ class BaseTrainer():
       lr = self.optim_args['lr'])
     self._load()
     if config['distributed']:
-      self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
       self.model = DDP(self.model, device_ids=[config['global_rank']], output_device=config['global_rank'], 
         broadcast_buffers=True)#, find_unused_parameters=False)
     
