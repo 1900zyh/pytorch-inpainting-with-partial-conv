@@ -49,7 +49,7 @@ class Trainer(BaseTrainer):
       self.add_summary(self.writer, 'lr/LR', self.optim.param_groups[0]['lr'])
 
       # logs
-      mae = torch.mean(torch.abs(images - pred_img)) / torch.mean(masks)
+      mae = torch.mean(torch.abs(images - pred_img)) / torch.mean(1-masks)
       speed = images.size(0)/(time.time() - end)*self.config['world_size']
       logs = [("epoch", self.epoch),("iter", self.iteration),("lr", self.get_lr()),
         ('mae', mae.item()), ('samples/s', speed)]
