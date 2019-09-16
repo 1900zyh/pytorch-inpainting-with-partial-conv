@@ -38,22 +38,22 @@ class Trainer(BaseTrainer):
       end = time.time()
       inpts = images*masks
       images, inpts, masks = set_device([images, inpts, masks])
-      self.optim.zero_grad()
       pred_img, _ = self.model(inpts, masks)
       complete_img = pred_img * (1.-masks) + images * masks
       
       # calculate loss and update weights for Generator
       loss = self.get_non_gan_loss(pred_img, images, masks)
+      self.optim.zero_grad()
       loss.backward()
       self.optim.step()
       self.add_summary(self.writer, 'lr/LR', self.optim.param_groups[0]['lr'])
 
       # logs
-      new_mae = torch.mean(torch.abs(images - pred_img)) / torch.mean(1-masks)
+      new_mae = (torch.mean(torch.abs(images - pred_img)) / torch.mean(1-masks)).item()
       mae = new_mae if mae == 0 else (new_mae+mae)/2
       speed = images.size(0)/(time.time() - end)*self.config['world_size']
       logs = [("epoch", self.epoch),("iter", self.iteration),("lr", self.get_lr()),
-        ('mae', mae.item()), ('samples/s', speed)]
+        ('mae', mae), ('samples/s', speed)]
       if self.config['global_rank'] == 0:
         progbar.add(len(images)*self.config['world_size'], values=logs \
           if self.train_args['verbosity'] else [x for x in logs if not x[0].startswith('l_')])
