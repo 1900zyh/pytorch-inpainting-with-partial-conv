@@ -133,10 +133,7 @@ class BaseTrainer():
       if self.config['global_rank'] == 0:
         print('Loading model from {}...'.format(path))
       data = torch.load(path, map_location = lambda storage, loc: set_device(storage)) 
-      model_dict = self.model.state_dict()
-      pretrained_dict = {k:v for k,v in data['model'].items() if k in model_dict}
-      model_dict.update(pretrained_dict)
-      self.model.load_state_dict(model_dict)
+      self.model.load_state_dict(data['model'])
       self.optim.load_state_dict(data['optim'])
       self.epoch = data['epoch']
       self.iteration = data['iteration']

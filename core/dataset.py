@@ -32,7 +32,7 @@ class Dataset(torch.utils.data.Dataset):
        transforms.ToTensor(),
        transforms.Normalize(mean=MEAN, std=STD)])
     self.mask_tf = transforms.Compose(
-      [transforms.Resize(size=(self.w, self.h), interpolation=Image.NEAREST ),
+      [transforms.Resize(size=(self.w, self.h), interpolation=Image.NEAREST),
        transforms.ToTensor()])
     if debug:
       self.data = self.data[:100]
