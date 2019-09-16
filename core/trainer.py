@@ -22,7 +22,6 @@ class Trainer(BaseTrainer):
   def __init__(self, config, debug=False):
     super().__init__(config, debug=debug)
     # additional things can be set here
-    self.pretrain = True
     if debug:
       self.config['trainer']['save_freq'] = 10
       self.config['trainer']['valid_freq'] = 10
@@ -32,8 +31,8 @@ class Trainer(BaseTrainer):
   def _train_epoch(self):
     progbar = Progbar(len(self.train_dataset), width=20, stateful_metrics=['epoch', 'iter'])
     for images, masks, names in self.train_loader:
+      self.model.train()
       self.adjust_learning_rate()
-      # self.adjust_learning_rate()
       self.iteration += 1
       end = time.time()
       inpts = images*masks
@@ -103,8 +102,7 @@ class Trainer(BaseTrainer):
 
 
   def adjust_learning_rate(self,):
-    if self.pretrain and self.iteration > self.config['lr_scheduler']['step_size']:
-      self.pretrain = False
+    if self.iteration > self.config['lr_scheduler']['step_size']:
       for param_group in self.optim.param_groups:
         param_group['lr'] = 5e-5
       for name, module in self.model.named_modules():
