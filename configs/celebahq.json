@@ -54,7 +54,7 @@
         "gamma": 0.97
     },
     "trainer": {
-        "iterations": 200000,
+        "iterations": 500000,
         "save_freq": 10000,
         "valid_freq": 20000,
         "verbosity": 2,
