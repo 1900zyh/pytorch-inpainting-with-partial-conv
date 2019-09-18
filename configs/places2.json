@@ -38,7 +38,7 @@
         }
     ],
     "metrics": [
-        "rmse",
+        "mae",
         "psnr",
         "ssim"
     ],

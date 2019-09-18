@@ -4,7 +4,7 @@ snapshots
 masks
 .idea
 
-
+release_model
 *.pth
 *.jpg
 *.png
