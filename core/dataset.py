@@ -47,6 +47,10 @@ class Dataset(torch.utils.data.Dataset):
       print('loading error: ' + self.data[index])
       item = self.load_item(0)
     return item
+  
+  def set_subset(self, start, end):
+    self.data = self.data[start:end]
+    self.mask = self.mask[start:end]
 
   def load_item(self, index):
     # load image
