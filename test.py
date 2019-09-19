@@ -45,12 +45,11 @@ BATCH_SIZE = 4
 
 def main_worker(gpu, ngpus_per_node, config):
   if config['distributed']:
-    torch.cuda.set_device(int(config['local_rank']))
-    print('using GPU {} for training'.format(int(config['local_rank'])))
+    torch.cuda.set_device(gpu)
     torch.distributed.init_process_group(backend = 'nccl', 
       init_method = config['init_method'],
       world_size = config['world_size'], 
-      rank = config['global_rank'],
+      rank = gpu,
       group_name='mtorch'
     )
   set_seed(config['seed'])
@@ -76,7 +75,7 @@ def main_worker(gpu, ngpus_per_node, config):
   # iteration through datasets
   for idx, (images, masks, names) in enumerate(dataloader):
     print('[{}] {}/{}: {}  ...'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-      idx*images.size(0), len(dataloader), names[0]))
+      idx, len(dataloader), names[0]))
     inpts = images*masks
     images, inpts, masks = set_device([images, inpts, masks])
     output, _ = model(inpts, masks)

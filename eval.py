@@ -42,12 +42,12 @@ def main():
     for rname, fname in zip(real_names[idx*step: (idx+1)*step], fake_names[idx*step: (idx+1)*step]):
       rimg = Image.open(rname)
       fimg = Image.open(fname)
-      real_images.append(rimg)
-      fake_images.append(fimg)
+      real_images.append(np.array(rimg))
+      fake_images.append(np.array(fimg))
     # calculating image quality assessments
     for key, val in metrics.items():
       evaluation_scores[key] = val(real_images, fake_images)
-    print('[{}%-{}%]'.format((idx+1)*10, (idx+2)*10).join(['{}: {:6f},'.format(key, val) for key,val in evaluation_scores.items()]))
+    print('[{}%-{}%]'.format((idx+1)*10, (idx+2)*10)+''.join(['{}: {:6f},'.format(key, val) for key,val in evaluation_scores.items()]))
     
     # calculate fid statistics for real images 
     real_images = np.array(real_images).astype(np.float32)/255.0
