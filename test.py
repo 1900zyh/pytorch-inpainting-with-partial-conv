@@ -38,15 +38,22 @@ from core.dataset import Dataset
 
 parser = argparse.ArgumentParser(description="PConv")
 parser.add_argument("-c", "--config", type=str, required=True)
+parser.add_argument("-p", "--port", type=str, default="23451")
 args = parser.parse_args()
 
 BATCH_SIZE = 4
 
 def main_worker(gpu, ngpus_per_node, config):
-  if ngpus_per_node > 0:
-    torch.cuda.set_device(int(gpu))
-  # set random seed 
-  set_seed(2020)
+  if config['distributed']:
+    torch.cuda.set_device(int(config['local_rank']))
+    print('using GPU {} for training'.format(int(config['local_rank'])))
+    torch.distributed.init_process_group(backend = 'nccl', 
+      init_method = config['init_method'],
+      world_size = config['world_size'], 
+      rank = config['global_rank'],
+      group_name='mtorch'
+    )
+  set_seed(config['seed'])
 
   # Model and version
   model = set_device(PConvUNet())
@@ -88,7 +95,10 @@ if __name__ == '__main__':
   config['save_dir'] = os.path.join(config['save_dir'], config['data_loader']['name'])
 
   print('using {} GPUs for testing ... '.format(ngpus_per_node))
-  if ngpus_per_node > 0:
-    mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config))
-  else:
-    main_worker(0, 1, args)
+  # setup distributed parallel training environments
+  ngpus_per_node = torch.cuda.device_count()
+  config['world_size'] = ngpus_per_node
+  config['init_method'] = 'tcp://127.0.0.1:'+ args.port 
+  config['distributed'] = True
+  mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, config))
+ 
