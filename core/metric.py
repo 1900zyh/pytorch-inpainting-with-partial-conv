@@ -11,7 +11,7 @@ import torch
 from torch.autograd import Variable
 from torch.nn.functional import adaptive_avg_pool2d
 
-from inception import InceptionV3
+from core.inception import InceptionV3
 
 
 

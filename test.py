@@ -11,6 +11,7 @@ from torchvision import models
 import torch.multiprocessing as mp
 from torchvision import transforms
 from torch.utils.data import DataLoader
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torchvision.utils import make_grid, save_image
 
 import cv2
@@ -19,7 +20,6 @@ from PIL import Image
 import numpy as np
 import math
 import time
-import tqdm
 import os
 import argparse
 import copy
@@ -54,6 +54,7 @@ def main_worker(gpu, ngpus_per_node, config):
   path = os.path.join(config['save_dir'], latest_epoch+'.pth')
   data = torch.load(path, map_location = lambda storage, loc: set_device(storage)) 
   model.load_state_dict(data['model'])
+  model = DDP(model, device_ids=[gpu], output_device=gpu, broadcast_buffers=True)
   model.eval() 
 
   # prepare dataset
@@ -68,7 +69,7 @@ def main_worker(gpu, ngpus_per_node, config):
   # iteration through datasets
   for idx, (images, masks, names) in enumerate(dataloader):
     print('[{}] {}/{}: {}  ...'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-      idx, len(dataloader), names[0]))
+      idx*images.size(0), len(dataloader), names[0]))
     inpts = images*masks
     images, inpts, masks = set_device([images, inpts, masks])
     output, _ = model(inpts, masks)
