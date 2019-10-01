@@ -38,6 +38,7 @@ from core.dataset import Dataset
 
 parser = argparse.ArgumentParser(description="PConv")
 parser.add_argument("-c", "--config", type=str, required=True)
+parser.add_argument("-l", "--level", type=int, required=True)
 parser.add_argument("-p", "--port", type=str, default="23451")
 args = parser.parse_args()
 
@@ -64,13 +65,13 @@ def main_worker(gpu, ngpus_per_node, config):
   model.eval() 
 
   # prepare dataset
-  dataset = Dataset(config['data_loader'], debug=False, split='test')
+  dataset = Dataset(config['data_loader'], debug=False, split='test', level=args.level)
   step = math.ceil(len(dataset) / ngpus_per_node)
   dataset.set_subset(gpu*step, min(gpu*step+step, len(dataset)))
   dataloader = DataLoader(dataset, batch_size= BATCH_SIZE, shuffle=False, num_workers=config['data_loader']['num_workers'], pin_memory=True)
 
   
-  path = os.path.join(config['save_dir'], 'results_{}'.format(str(latest_epoch).zfill(5)))
+  path = os.path.join(config['save_dir'], 'results_{}_level_{}'.format(str(latest_epoch).zfill(5), str(args.level).zfill(2)))
   os.makedirs(path, exist_ok=True)
   # iteration through datasets
   for idx, (images, masks, names) in enumerate(dataloader):
@@ -78,7 +79,8 @@ def main_worker(gpu, ngpus_per_node, config):
       idx, len(dataloader), names[0]))
     inpts = images*masks
     images, inpts, masks = set_device([images, inpts, masks])
-    output, _ = model(inpts, masks)
+    with torch.no_grad():
+      output, _ = model(inpts, masks)
     orig_imgs = list(postprocess(images))
     comp_imgs = list(postprocess(masks*images+(1-masks)*output))
     for i in range(len(orig_imgs)):
